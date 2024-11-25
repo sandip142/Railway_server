@@ -3,10 +3,10 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const Station = require('./Models/Station'); // Station model
-const Train = require('./Models/train'); // Train model
-const { DB_NAME } = require('./constant'); 
-const upload = require('./uploadFile'); 
+const Station = require('../Models/Station'); // Station model
+const Train = require('../Models/train'); // Train model
+const { DB_NAME } = require('../constant'); 
+const upload = require('../uploadFile'); 
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
@@ -267,7 +267,9 @@ app.get('/trains/:trainNumber/audio', async (req, res) => {
 });
 
 
-
+app.get('/',(req,res)=>{
+  res.send('Api Home Page')
+});
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
