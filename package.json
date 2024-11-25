@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "build": "npm install --legacy-peer-deps && node index.js"
+  },
   "dependencies": {
     "body-parser": "^1.20.3",
     "cloudinary": "^2.5.1",
