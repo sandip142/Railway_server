@@ -8,7 +8,8 @@ const TrainSchema = new mongoose.Schema({
   destination: { type: String, required: true },   // Destination station name
   arrivalTime: { type: String, required: true },   // Arrival time at the station
   departureTime: { type: String, required: true }, // Departure time from the station
-  stationIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Station' }] // Array of station IDs
+  stationIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Station' }], 
+  audioFilePath: { type: String },// Array of station IDs
 });
 
 const Train = mongoose.model('Train', TrainSchema);

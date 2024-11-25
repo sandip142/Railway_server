@@ -5,8 +5,11 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const Station = require('./Models/Station'); // Station model
 const Train = require('./Models/train'); // Train model
-const { DB_NAME } = require('./constant'); // Import DB_NAME
-
+const { DB_NAME } = require('./constant'); 
+const upload = require('./uploadFile'); 
+const path = require('path');
+const fs = require('fs');
+const https = require('https');
 // Load environment variables
 dotenv.config({ path: "./.env" });
 
@@ -156,17 +159,114 @@ app.delete('/stations/:code', async (req, res) => {
 /**
  * Get Train by Train Number (GET /trains/:trainNumber)
  */
+// app.get('/trains/:trainNumber', async (req, res) => {
+//   try {
+//     const train = await Train.findOne({ trainNumber: req.params.trainNumber }).populate('stationIds');
+//     if (!train) {
+//       return res.status(404).json({ message: 'Train not found' });
+//     }
+//     res.status(200).json(train);
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// });
+
 app.get('/trains/:trainNumber', async (req, res) => {
   try {
-    const train = await Train.findOne({ trainNumber: req.params.trainNumber }).populate('stationIds');
+    // Find the train using the trainNumber and populate station details
+    const train = await Train.findOne({ trainNumber: req.params.trainNumber })
+      .populate({
+        path: 'stationIds', // Populate the 'stationIds' field
+        select: 'stationName stationCode' // Include only stationName and stationCode
+      });
+
+    // If train not found, return a 404 response
     if (!train) {
       return res.status(404).json({ message: 'Train not found' });
     }
+
+    // Return the train data along with populated station details
     res.status(200).json(train);
   } catch (err) {
+    // Handle server errors
     res.status(500).json({ error: err.message });
   }
 });
+
+/**
+ * Update Train by Train Number (PUT /trains/:trainNumber)
+ * Allows updating train details and uploading an audio file.
+ */
+app.post('/trains/:trainNumber', upload.single('audioFilePath'), async (req, res) => {
+  try {
+    const { trainNumber } = req.params;
+    const { trainName, source, destination, arrivalTime, departureTime } = req.body;
+
+    // Find the train by its number
+    const train = await Train.findOne({ trainNumber });
+
+    if (!train) {
+      return res.status(404).json({ message: 'Train not found' });
+    }
+
+    // Update train details
+    if (trainName) train.trainName = trainName;
+    if (source) train.source = source;
+    if (destination) train.destination = destination;
+    if (arrivalTime) train.arrivalTime = arrivalTime;
+    if (departureTime) train.departureTime = departureTime;
+
+    // If a new audio file is uploaded, save its Cloudinary URL
+    if (req.file) {
+      train.audioFilePath = req.file.path; // Cloudinary URL
+    }
+
+    await train.save(); // Save the updated train
+    res.status(200).json({
+      message: 'Train updated successfully',
+      train,
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+
+// Stream Train Audio File
+app.get('/trains/:trainNumber/audio', async (req, res) => {
+  try {
+    const { trainNumber } = req.params;
+
+    // Find train by train number
+    const train = await Train.findOne({ trainNumber });
+
+    if (!train || !train.audioFilePath) {
+      return res.status(404).json({ message: 'Audio file not found for this train' });
+    }
+
+    // Stream audio file from Cloudinary
+    const cloudinaryUrl = train.audioFilePath;
+    https.get(cloudinaryUrl, (cloudinaryRes) => {
+      if (cloudinaryRes.statusCode !== 200) {
+        return res.status(404).json({ message: 'Failed to fetch audio file from Cloudinary' });
+      }
+
+      // Set headers for streaming
+      res.setHeader('Content-Type', cloudinaryRes.headers['content-type'] || 'audio/mpeg');
+      res.setHeader('Content-Disposition', 'inline');
+
+      cloudinaryRes.pipe(res); // Pipe the response to the client
+    }).on('error', (err) => {
+      console.error('Error streaming file:', err);
+      res.status(500).json({ message: 'Error retrieving the audio file' });
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 
 // Start the server
 app.listen(PORT, () => {
